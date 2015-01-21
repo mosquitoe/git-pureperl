@@ -6,6 +6,13 @@ use IO::File;
 use Path::Class;
 use Test::More;
 
+my $socket = IO::Socket::INET->new("www.github.com:80");
+if ($socket) {
+    close ($socket);
+} else {
+    plan skip_all => 'No Internet connection available';
+}
+
 my $directory = 'test-protocol';
 dir($directory)->rmtree;
 
