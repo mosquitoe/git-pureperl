@@ -531,7 +531,7 @@ It was mostly based on Grit L<http://grit.rubyforge.org/>.
 
 =head1 MAINTAINANCE
 
-This module is maintained in git at L<http://github.com/bobtfish/git-pureperl/>.
+This module is maintained in git at L<http://github.com/broquaint/git-pureperl/>.
 
 Patches are welcome, please come speak to one of the L<Gitalist> team
 on C<< #gitalist >>.

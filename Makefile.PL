@@ -9,7 +9,7 @@ author 'Leon Brocard <acme@astray.com>';
 abstract 'A Pure Perl interface to Git repositories';
 license 'perl';
 
-resources repository => 'git://github.com/bobtfish/git-pureperl.git';
+resources repository => 'git://github.com/broquaint/git-pureperl.git';
 
 requires        'Archive::Extract'           => '0';
 requires        'Compress::Raw::Zlib'        => '0';
