@@ -1,5 +1,9 @@
 Revision history for Perl module Git::PurePerl:
 
+0.53 Mon 19 Sep 2016 16:12:45 BST
+     - Add support for creating merge commits to Git::PurePerl::Object::Commit
+       (Philippe Bruhat (BooK))
+
 0.52 Sat Jun 11 22:22:04 CEST 2016
      - fix 'Can't redeclare "my" in "my" ...' error in 5.24 (gregor herrmann)
 
