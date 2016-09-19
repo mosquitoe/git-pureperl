@@ -10,7 +10,7 @@ extends 'Git::PurePerl::NewObject';
 has 'kind' =>
     ( is => 'ro', isa => 'ObjectKind', required => 1, default => 'commit' );
 has 'tree'   => ( is => 'rw', isa => 'Str',                  required => 1 );
-has 'parent' => ( is => 'rw', isa => 'Str',                  required => 0 );
+has 'parent' => ( is => 'rw', isa => 'Str|ArrayRef[Str]',    required => 0 );
 has 'author' => ( is => 'rw', isa => 'Git::PurePerl::Actor', required => 1 );
 has 'authored_time' => ( is => 'rw', isa => 'DateTime', required => 1 );
 has 'committer' =>
@@ -23,7 +23,14 @@ sub _build_content {
     my $content;
 
     $content .= 'tree ' . $self->tree . "\n";
-    $content .= 'parent ' . $self->parent . "\n" if $self->parent;
+    if ( my $parent = $self->parent ) {
+        if ( ref $parent ) {
+            $content .= "parent $_\n" for @$parent;
+        }
+        else {
+            $content .= "parent $parent\n";
+        }
+    }
     $content
         .= "author "
         . $self->author->name . ' <'
