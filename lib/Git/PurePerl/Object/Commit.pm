@@ -18,6 +18,7 @@ has 'committer' =>
 has 'committed_time' => ( is => 'rw', isa => 'DateTime', required => 0 );
 has 'comment'        => ( is => 'rw', isa => 'Str',      required => 0 );
 has 'encoding'       => ( is => 'rw', isa => 'Str',      required => 0 );
+has 'gpgsig'	     => ( is => 'rw', isa => 'Str',      required => 0 );
 
 my %method_map = (
     'tree'      => 'tree_sha1',
@@ -31,9 +32,24 @@ sub BUILD {
     return unless $self->content;
     my @lines = split "\n", $self->content;
     my %header;
+    my $insig = 0;
+    my $sig = "";
     while ( my $line = shift @lines ) {
         last unless $line;
-        my ( $key, $value ) = split ' ', $line, 2;
+	my ( $key, $value );
+	if ($insig) {
+	    $sig .= $line;
+	    next unless $line =~ /-----END PGP SIGNATURE-----/;
+	    ( $key, $value ) = ( "gpgsig", $sig );
+	    $insig = 0;
+        } else {
+	    ( $key, $value ) = split ' ', $line, 2;
+	    if ($key eq "gpgsig") {
+	        $insig = 1;
+	        $sig = $value;
+	        next;
+            }
+        }
         push @{$header{$key}}, $value;
     }
     $header{encoding}
