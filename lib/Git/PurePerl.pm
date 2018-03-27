@@ -32,6 +32,7 @@ use Git::PurePerl::PackIndex;
 use Git::PurePerl::PackIndex::Version1;
 use Git::PurePerl::PackIndex::Version2;
 use Git::PurePerl::Protocol;
+use Git::PurePerl::Remote;
 use IO::Digest;
 use IO::Socket::INET;
 use Path::Class;
@@ -64,6 +65,14 @@ has 'loose' => (
 has 'packs' => (
     is         => 'rw',
     isa        => 'ArrayRef[Git::PurePerl::Pack]',
+    required   => 0,
+    auto_deref => 1,
+    lazy_build => 1,
+);
+
+has 'remotes' => (
+    is	       => 'rw',
+    isa	       => 'HashRef[Git::PurePerl::Remote]',
     required   => 0,
     auto_deref => 1,
     lazy_build => 1,
@@ -126,6 +135,34 @@ sub _build_packs {
             Git::PurePerl::Pack::WithIndex->new( filename => $filename );
     }
     return \@packs;
+}
+
+sub _build_remotes {
+    my $self = shift;
+    my $remotes_config = $self->config->get_regexp(key => 'remote\..*');
+    my $sorted_config = {};
+
+    foreach my $key (keys %$remotes_config) {
+	my @key = split /\./, $key;
+	confess "Config reader broken for $key" unless (shift @key) eq "remote";
+	my $name = shift @key;
+	my $subkey = shift @key;
+	confess "Strange key in config: $key" if @key;
+	$sorted_config->{$name}->{$subkey} = $remotes_config->{$key};
+    }
+
+    my $remotes = {};
+    foreach my $remote_name (keys %$sorted_config) {
+	$remotes->{$remote_name} = Git::PurePerl::Remote->new(
+	    name => $remote_name,
+	    ( exists $sorted_config->{$remote_name}->{push_url} ?
+	      ( push_url => $sorted_config->{$remote_name}->{push_url} )
+	      : ()),
+	    url => $sorted_config->{$remote_name}->{url},
+	    git => $self,
+	);
+    }
+    return $remotes;
 }
 
 sub _ref_names_recursive {
@@ -446,6 +483,39 @@ sub checkout {
             die $object->kind;
         }
     }
+}
+
+sub new_remote {
+    my $self = shift;
+
+    my $obj;
+    if ((@_ == 1) and (CORE::ref $_[0]) eq "HASH") {
+	$obj = Git::PurePerl::Remote->new({ %{$_[0]}, git => $self });
+    } else {
+	$obj = Git::PurePerl::Remote->new(@_, git => $self);
+    }
+
+    die "Error adding remote " . $obj->name . ": Name collision." if exists $self->remotes->{$obj->name};
+
+    $self->config->set(
+	key => "remote." . $obj->name . ".url",
+	value => $obj->fetch_url,
+	filename => $self->gitdir->file("config"),
+    );
+
+    $self->config->set(
+	key => "remote." . $obj->name . ".push_url",
+	value => $obj->push_url,
+	filename => $self->gitdir->file("config"),
+    ) if $obj->fetch_url ne $obj->push_url;
+
+    $self->config->set(
+	key => "remote." . $obj->name . ".fetch",
+	value => "+refs/heads/*:refs/remotes/" . $obj->name . "/*",
+	filename => $self->gitdir->file("config"),
+    );
+
+    $self->remotes->{$obj->name} = $obj;
 }
 
 sub clone {
