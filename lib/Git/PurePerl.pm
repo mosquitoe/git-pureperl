@@ -536,6 +536,7 @@ sub new_remote {
     );
 
     $self->remotes->{$obj->name} = $obj;
+    return $obj;
 }
 
 sub clone {
@@ -551,15 +552,8 @@ sub clone {
         $url = shift;
     }
 
-    my $protocol = Git::PurePerl::Protocol->new(
-	remote => $url,
-    );
-
-    my $sha1s = $protocol->connect;
-    my $head  = $sha1s->{HEAD};
-    my $data  = $protocol->fetch_pack($head);
-
-    $self->add_pack($head, $data);
+    my $remote = $self->new_remote(name => 'origin', url => $url);
+    my $head = $remote->fetch('HEAD');
 
     $self->update_ref( master => $head );
     $self->ref_head( "master" );
