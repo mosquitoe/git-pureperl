@@ -451,18 +451,18 @@ sub checkout {
 sub clone {
     my $self = shift;
 
-    my $remote;
+    my $url;
     if (@_  == 2) {
         # For backwards compatibility
-        $remote = "git://$_[0]";
-        $remote .= "/" unless $_[1] =~ m{^/};
-        $remote .= $_[1];
+        $url = "git://$_[0]";
+        $url .= "/" unless $_[1] =~ m{^/};
+        $url .= $_[1];
     } else {
-        $remote = shift;
+        $url = shift;
     }
 
     my $protocol = Git::PurePerl::Protocol->new(
-        remote => $remote,
+	remote => $url,
     );
 
     my $sha1s = $protocol->connect;
