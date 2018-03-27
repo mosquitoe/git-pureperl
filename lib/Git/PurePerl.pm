@@ -539,15 +539,21 @@ sub clone {
     my $head  = $sha1s->{HEAD};
     my $data  = $protocol->fetch_pack($head);
 
+    $self->add_pack($head, $data);
+
+    $self->update_ref( master => $head );
+}
+
+sub add_pack {
+    my ( $self, $hash, $data ) = @_;
+
     my $filename
-        = file( $self->gitdir, 'objects', 'pack', 'pack-' . $head . '.pack' );
+        = file( $self->gitdir, 'objects', 'pack', 'pack-' . $hash . '.pack' );
     $self->_add_file( $filename, $data );
 
     my $pack
         = Git::PurePerl::Pack::WithoutIndex->new( filename => $filename );
     $pack->create_index();
-
-    $self->update_ref( master => $head );
 }
 
 sub _add_file {
