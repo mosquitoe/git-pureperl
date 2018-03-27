@@ -393,13 +393,27 @@ sub update_ref {
     $ref->parent->mkpath;
     my $ref_fh = $ref->openw;
     $ref_fh->print($sha1) || die "Error writing to $ref";
+}
 
-    # FIXME is this always what we want?
+sub ref_head {
+    my ( $self, $refname ) = @_;
+    $self->_write_head("ref: refs/heads/$refname");
+}
+
+sub detach_head {
+    my ( $self, $sha1 ) = @_;
+    $self->_write_head($sha1);
+}
+
+sub _write_head {
+    my ( $self, $value ) = @_;
+
     my $head = file( $self->gitdir, 'HEAD' );
     my $head_fh = $head->openw;
-    $head_fh->print("ref: refs/heads/$refname")
+    $head_fh->print($value)
         || die "Error writing to $head";
 }
+
 
 sub init {
     my ( $class, %arguments ) = @_;
@@ -542,6 +556,7 @@ sub clone {
     $self->add_pack($head, $data);
 
     $self->update_ref( master => $head );
+    $self->ref_head( "master" );
 }
 
 sub add_pack {
