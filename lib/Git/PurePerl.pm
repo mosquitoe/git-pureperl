@@ -389,7 +389,13 @@ sub put_object {
 
 sub update_ref {
     my ( $self, $refname, $sha1 ) = @_;
-    my $ref = file( $self->gitdir, 'refs', 'heads', $refname );
+    my @sref = split m#/#, $refname;
+    my $ref;
+    if (@sref == 1) {
+      $ref = file( $self->gitdir, 'refs', 'heads', $refname );
+    } else {
+      $ref = file( $self->gitdir, 'refs', @sref );
+    }
     $ref->parent->mkpath;
     my $ref_fh = $ref->openw;
     $ref_fh->print($sha1) || die "Error writing to $ref";
