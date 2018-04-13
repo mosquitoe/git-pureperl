@@ -240,10 +240,8 @@ sub ref_sha1 {
         foreach my $line ( $packed_refs->slurp( chomp => 1 ) ) {
             next if $line =~ /^#/;
             my ( $sha1, $name ) = split ' ', $line;
-            $sha1 =~ s/^\^//;
-            $name ||= $last_name;
 
-            return _ensure_sha1_is_sha1( $self, $last_sha1 ) if $last_name and $last_name eq $wantref and $name ne $wantref;
+            return _ensure_sha1_is_sha1( $self, $last_sha1 ) if $last_name and $last_name eq $wantref and (defined $name and $name ne $wantref or not defined $name and $sha1 =~ s/^\^//);
 
             $last_name = $name;
             $last_sha1 = $sha1;
