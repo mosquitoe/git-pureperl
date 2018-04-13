@@ -88,7 +88,6 @@ sub tree {
 
 sub _push_parent_sha1 {
     my ($self, $sha1) = @_;
-  
     push(@{$self->parent_sha1s}, $sha1);
 }
 
@@ -105,6 +104,16 @@ sub parents {
     my $self = shift;
     
     return map { $self->git->get_object( $_ ) } @{$self->parent_sha1s};
+}
+
+sub describe {
+    my $self = shift;
+    my @tags = map { $self->git->ref($_) } grep { m#^refs/tags/# } $self->git->ref_names;
+    foreach my $tag (@tags) {
+	return $tag->tag if ($self->sha1 eq $tag->object);
+    }
+
+    return $self->sha1;
 }
 
 __PACKAGE__->meta->make_immutable;
