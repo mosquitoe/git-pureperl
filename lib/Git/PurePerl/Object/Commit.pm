@@ -113,7 +113,7 @@ sub describe {
 	return $tag->tag if ($self->sha1 eq $tag->object);
     }
 
-    return $self->sha1;
+    return $self->git->sha1_short($self->sha1);
 }
 
 __PACKAGE__->meta->make_immutable;

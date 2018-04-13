@@ -377,6 +377,23 @@ sub all_objects {
     );
 }
 
+sub sha1_short {
+    my $self = shift;
+    my $sha1 = shift;
+
+    my $cpxl = 6; # Minimal length of hash
+    my $shs = substr $sha1, 0, $cpxl;
+
+    foreach my $hash ( $self->all_sha1s ) {
+	next unless $hash =~ /^$shs/;
+	$cpxl++;
+	$shs = substr $sha1, 0, $cpxl;
+	redo;
+    }
+
+    return $shs;
+}
+
 sub put_object {
     my ( $self, $object, $ref ) = @_;
     $self->loose->put_object($object);
