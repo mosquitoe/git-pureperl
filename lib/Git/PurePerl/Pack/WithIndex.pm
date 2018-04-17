@@ -16,7 +16,7 @@ sub BUILD {
     $index_filename =~ s/\.pack/.idx/;
     $self->index_filename($index_filename);
 
-    my $index_fh = IO::File->new($index_filename) || confess($!);
+    my $index_fh = IO::File->new($index_filename) || confess("Error opening file $index_filename: " . $!);
     $index_fh->binmode();
     $index_fh->read( my $signature, 4 );
     $index_fh->read( my $version,   4 );
