@@ -160,6 +160,12 @@ sub _build_remotes {
 	      : ()),
 	    url => $sorted_config->{$remote_name}->{url},
 	    git => $self,
+	    ( exists $sorted_config->{$remote_name}->{fetch} ?
+	      ( fetch_spec => $sorted_config->{$remote_name}->{fetch} )
+	      : ()),
+	    ( exists $sorted_config->{$remote_name}->{push} ?
+	      ( push_spec => $sorted_config->{$remote_name}->{push} )
+	      : ()),
 	);
     }
     return $remotes;
@@ -404,12 +410,14 @@ sub put_object {
 
 sub update_ref {
     my ( $self, $refname, $sha1 ) = @_;
-    my @sref = split m#/#, $refname;
+    my @sref = split m#/#, $refname or die "Empty refname in update_ref";
     my $ref;
     if (@sref == 1) {
-      $ref = file( $self->gitdir, 'refs', 'heads', $refname );
+	$ref = file( $self->gitdir, 'refs', 'heads', $refname );
+    } elsif ($sref[0] eq "refs") {
+	$ref = file( $self->gitdir, @sref );
     } else {
-      $ref = file( $self->gitdir, 'refs', @sref );
+	$ref = file( $self->gitdir, 'refs', @sref );
     }
     $ref->parent->mkpath;
     my $ref_fh = $ref->openw;
@@ -546,9 +554,15 @@ sub new_remote {
 
     $self->config->set(
 	key => "remote." . $obj->name . ".fetch",
-	value => "+refs/heads/*:refs/remotes/" . $obj->name . "/*",
+	value => $obj->fetch_spec,
 	filename => $self->gitdir->file("config"),
-    );
+    ) if $obj->fetch_spec;
+
+    $self->config->set(
+	key => "remote." . $obj->name . ".push",
+	value => $obj->push_spec,
+	filename => $self->gitdir->file("config"),
+    ) if $obj->push_spec;
 
     $self->remotes->{$obj->name} = $obj;
     return $obj;
@@ -567,7 +581,7 @@ sub clone {
         $url = shift;
     }
 
-    my $remote = $self->new_remote(name => 'origin', url => $url);
+    my $remote = $self->new_remote(name => 'origin', url => $url, fetch => "+refs/heads/*:refs/remotes/origin/*");
     my $head = $remote->fetch('HEAD');
 
     $self->update_ref( master => $head );

@@ -9,6 +9,7 @@ use Git::PurePerl::Protocol::SSH;
 use Git::PurePerl::Protocol::File;
 
 has 'remote' => ( is => 'ro', isa => 'Str', required => 1 );
+has 'git' => ( is => 'ro', isa => 'Git::PurePerl', required => 1, weak_ref => 1 );
 has 'read_socket' => ( is => 'rw', required => 0 );
 has 'write_socket' => ( is => 'rw', required => 0 );
 
@@ -51,30 +52,88 @@ sub connect {
 }
 
 sub fetch_pack {
-    my ( $self, $sha1 ) = @_;
-    $self->send_line("want $sha1 side-band-64k\n");
+    my ( $self, @sha1s ) = @_;
+    return unless @sha1s;
 
-#send_line(
-#    "want 0c7b3d23c0f821e58cd20e60d5e63f5ed12ef391 multi_ack side-band-64k ofs-delta\n"
-#);
+    # Send all the wanted refs at once
+    $self->send_line("want $sha1s[0] multi_ack_detailed side-band-64k\n");
+    foreach my $sha1 (@sha1s) {
+	next if $self->git->get_object($sha1);
+	$self->send_line("want $sha1\n");
+    }
     $self->send_line('');
+
+    # Negotiate on what to transfer
+    # First of all, we have the refs
+    my %sha1s;
+    foreach my $ref ($self->git->refs) {
+	if ($ref->kind eq "commit") {
+	    $sha1s{$ref->sha1} = 1;
+	} elsif ($ref->kind eq "tag") {
+	    $ref = $self->git->get_object($ref->object);
+	    redo;
+	}
+    }
+    my %sha1s_seen;
+    my $packhash;
+    HAVELOOP: while (keys %sha1s) {
+	# There is still something we have
+	foreach my $sha1 (keys %sha1s) {
+	    $self->send_line("have $sha1\n");
+	}
+	$self->send_line('');
+
+	# Check what server has
+	while ( my $line = $self->read_line() ) {
+	    if ( $line =~ s/^\x02// ) {
+		print $line;
+	    } elsif ( $line =~ /^NAK\n/ ) {
+		# No more ACK's, let's try parents of the remaining commits.
+		foreach my $sha1 (keys %sha1s) {
+		    foreach my $parent (@{$self->git->get_object($sha1)->parent_sha1s}) {
+			next if $sha1s_seen{$parent};
+			$sha1s{$parent}++;
+		    }
+		    delete $sha1s{$sha1};
+		    $sha1s_seen{$sha1}++;
+		}
+		next HAVELOOP;
+	    } elsif ( $line =~ /^ACK ([0-9a-f]{40}) (common|ready)\n/ ) {
+		# This commit is common.
+		my @okq = ( $1 );
+		while ( @okq ) {
+		    my $sha1 = shift @okq;
+		    next if exists $sha1s_seen{$sha1};
+		    delete $sha1s{$sha1} if exists $sha1s{$sha1};
+		    $sha1s_seen{$sha1}++;
+		    push @okq, @{$self->git->get_object($sha1)->parent_sha1s};
+		}
+	    } else {
+		die "Got strange line: $line";
+	    }
+	}
+    }
+
     $self->send_line('done');
 
     my $pack;
 
     while ( my $line = $self->read_line() ) {
-        if ( $line =~ s/^\x02// ) {
-            print $line;
-        } elsif ( $line =~ /^NAK\n/ ) {
+	if ( $line =~ s/^\x02// ) {
+	    print $line;
         } elsif ( $line =~ s/^\x01// ) {
             $pack .= $line;
+	} elsif ( $line =~ /^ACK ([0-9a-f]{40})\n/ ) {
+	    $packhash = $1;
         } else {
             die "Unknown line: $line";
         }
 
         #say "s $line";
     }
-    return $pack;
+
+    $self->git->add_pack($packhash, $pack);
+    return $packhash;
 }
 
 sub send_line {
