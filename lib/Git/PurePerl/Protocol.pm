@@ -67,6 +67,7 @@ sub fetch_pack {
     # First of all, we have the refs
     my %sha1s;
     foreach my $ref ($self->git->refs) {
+	next unless defined $ref;
 	if ($ref->kind eq "commit") {
 	    $sha1s{$ref->sha1} = 1;
 	} elsif ($ref->kind eq "tag") {
